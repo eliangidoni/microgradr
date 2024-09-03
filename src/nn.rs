@@ -1,37 +1,14 @@
-use std::cell::RefCell;
-
-use rand::{distributions::uniform::SampleUniform, thread_rng, Rng, SeedableRng};
-use rand_chacha::ChaCha20Rng;
-
-use crate::{Value, ValueVec};
-
-thread_local! {
-    static RNG: RefCell<ChaCha20Rng> = RefCell::new(ChaCha20Rng::from_rng(thread_rng()).unwrap());
-}
-
-pub fn set_seed(seed: u64) -> () {
-    RNG.set(ChaCha20Rng::seed_from_u64(seed));
-}
-
-pub fn gen_range<T>(low: T, high: T) -> T
-where
-    T: SampleUniform + PartialOrd,
-{
-    RNG.with_borrow_mut(|rng| rng.gen_range(low..high))
-}
+use crate::{Value, Value1d};
 
 pub struct Neuron {
-    weights: ValueVec,
+    weights: Value1d,
     bias: Value,
     is_activation: bool,
 }
 
 impl Neuron {
     pub fn new(inputs: usize, is_activation: bool) -> Self {
-        let rands = (0..inputs)
-            .map(|_| gen_range(-1.0, 1.0))
-            .collect::<Vec<f64>>();
-        let weights = ValueVec::from(rands);
+        let weights = Value1d::rand(inputs);
         Self {
             weights,
             bias: Value::from(0.0),
@@ -39,7 +16,16 @@ impl Neuron {
         }
     }
 
-    pub fn parameters(&self) -> ValueVec {
+    pub fn set_weights(&mut self, weights: &Value1d) {
+        assert_eq!(weights.len(), self.weights.len());
+        self.weights = weights.clone();
+    }
+
+    pub fn set_bias(&mut self, bias: &Value) {
+        self.bias = bias.clone();
+    }
+
+    pub fn parameters(&self) -> Value1d {
         self.weights
             .iter()
             .chain(std::iter::once(&self.bias))
@@ -47,7 +33,7 @@ impl Neuron {
             .collect()
     }
 
-    pub fn forward(&self, inputs: &ValueVec) -> Value {
+    pub fn forward(&self, inputs: &Value1d) -> Value {
         assert_eq!(inputs.len(), self.weights.len());
         let result = (inputs * &self.weights).sum() + &self.bias;
         if self.is_activation {
@@ -69,14 +55,27 @@ impl Layer {
         Self { neurons }
     }
 
-    pub fn parameters(&self) -> ValueVec {
+    pub fn parameters(&self) -> Value1d {
         self.neurons
             .iter()
             .flat_map(|neuron| neuron.parameters())
             .collect()
     }
 
-    pub fn forward(&self, inputs: &ValueVec) -> ValueVec {
+    pub fn set_weights(&mut self, weight: Value) {
+        for neuron in self.neurons.iter_mut() {
+            let weights = Value1d::from(vec![weight.data(); neuron.weights.len()]);
+            neuron.set_weights(&weights);
+        }
+    }
+
+    pub fn set_bias(&mut self, bias: Value) {
+        for neuron in self.neurons.iter_mut() {
+            neuron.set_bias(&bias);
+        }
+    }
+
+    pub fn forward(&self, inputs: &Value1d) -> Value1d {
         self.neurons
             .iter()
             .map(|neuron| neuron.forward(inputs))
@@ -104,7 +103,7 @@ impl MLP {
         Self { layers }
     }
 
-    pub fn parameters(&self) -> ValueVec {
+    pub fn parameters(&self) -> Value1d {
         self.layers
             .iter()
             .flat_map(|layer| layer.parameters())
@@ -115,7 +114,7 @@ impl MLP {
         self.parameters().zero_grad();
     }
 
-    pub fn forward(&self, mut inputs: ValueVec) -> ValueVec {
+    pub fn forward(&self, mut inputs: Value1d) -> Value1d {
         for layer in self.layers.iter() {
             inputs = layer.forward(&inputs);
         }

@@ -1,6 +1,8 @@
 use crate::gen_range;
 use crate::Value;
-use crate::ValueVec;
+use crate::Value1d;
+use crate::Value2d;
+use crate::CNN;
 use crate::MLP;
 use std::collections::HashSet;
 use std::f64::INFINITY;
@@ -26,8 +28,8 @@ where
 
 pub fn mean_squared_error(
     model: &MLP,
-    inputs: Vec<ValueVec>,
-    targets: Vec<ValueVec>,
+    inputs: Vec<Value1d>, // shape: (batch_size, features)
+    targets: Vec<Value1d>,
     learning_rate: f64,
     epochs: usize,
     batch_size: usize,
@@ -37,18 +39,17 @@ pub fn mean_squared_error(
     let mut last_loss = INFINITY;
     for _ in 0..epochs {
         let (sample_inputs, sample_targets) = sample_of_size(&inputs, &targets, batch_size);
-        let predictions: Vec<ValueVec> = sample_inputs
+        let predictions: Vec<Value1d> = sample_inputs
             .iter()
             .map(|x| model.forward(x.clone()))
             .collect();
         let loss: Value = predictions
             .into_iter()
             .zip(&sample_targets)
-            .map(|(prediction, target)| (prediction - target).pow(&ValueVec::from(vec![2.0])))
-            .collect::<ValueVec>()
+            .map(|(prediction, target)| (prediction - target).pow(&Value1d::from(vec![2.0])))
+            .collect::<Value1d>()
             .mean();
         last_loss = loss.data();
-        println!("Loss: {}", last_loss);
         model.zero_grad();
         loss.backward();
         model.update(-learning_rate);
@@ -58,7 +59,7 @@ pub fn mean_squared_error(
 
 pub fn binary_crossentropy(
     model: &MLP,
-    inputs: Vec<ValueVec>,
+    inputs: Vec<Value1d>, // shape: (batch_size, features)
     targets: Vec<bool>,
     learning_rate: f64,
     epochs: usize,
@@ -69,7 +70,7 @@ pub fn binary_crossentropy(
     let mut last_loss = INFINITY;
     for _ in 0..epochs {
         let (sample_inputs, sample_targets) = sample_of_size(&inputs, &targets, batch_size);
-        let predictions: Vec<ValueVec> = sample_inputs
+        let predictions: Vec<Value1d> = sample_inputs
             .iter()
             .map(|x| model.forward(x.clone()))
             .collect();
@@ -84,7 +85,7 @@ pub fn binary_crossentropy(
                     + (Value::from(1.0) - target) * (Value::from(1.0) - prob).log();
                 -loss
             })
-            .collect::<ValueVec>()
+            .collect::<Value1d>()
             .mean();
         last_loss = loss.data();
         model.zero_grad();
@@ -96,7 +97,7 @@ pub fn binary_crossentropy(
 
 pub fn categorical_crossentropy(
     model: &MLP,
-    inputs: Vec<ValueVec>,
+    inputs: Vec<Value1d>, // shape: (batch_size, features)
     targets: Vec<usize>,
     learning_rate: f64,
     epochs: usize,
@@ -107,7 +108,7 @@ pub fn categorical_crossentropy(
     let mut last_loss = INFINITY;
     for _ in 0..epochs {
         let (sample_inputs, sample_targets) = sample_of_size(&inputs, &targets, batch_size);
-        let predictions: Vec<ValueVec> = sample_inputs
+        let predictions: Vec<Value1d> = sample_inputs
             .iter()
             .map(|x| model.forward(x.clone()))
             .collect();
@@ -119,7 +120,80 @@ pub fn categorical_crossentropy(
                 assert!(*target < nll.len());
                 nll[*target].clone()
             })
-            .collect::<ValueVec>()
+            .collect::<Value1d>()
+            .mean();
+        last_loss = loss.data();
+        model.zero_grad();
+        loss.backward();
+        model.update(-learning_rate);
+    }
+    last_loss
+}
+
+pub fn categorical_crossentropy_2d(
+    model: &CNN,
+    inputs: Vec<Vec<Value2d>>, // shape: (batch_size, channels, height, width)
+    targets: Vec<usize>,
+    learning_rate: f64,
+    epochs: usize,
+    batch_size: usize,
+) -> f64 {
+    assert!(!inputs.is_empty());
+    assert!(inputs.len() == targets.len());
+    let mut last_loss = INFINITY;
+    for _ in 0..epochs {
+        let (sample_inputs, sample_targets) = sample_of_size(&inputs, &targets, batch_size);
+        let predictions: Vec<Value1d> = sample_inputs
+            .iter()
+            .map(|x| model.forward(x.clone()))
+            .collect();
+        let loss: Value = predictions
+            .into_iter()
+            .zip(&sample_targets)
+            .map(|(prediction, target)| {
+                let nll = -prediction.softmax().log();
+                assert!(*target < nll.len());
+                nll[*target].clone()
+            })
+            .collect::<Value1d>()
+            .mean();
+        last_loss = loss.data();
+        model.zero_grad();
+        loss.backward();
+        model.update(-learning_rate);
+    }
+    last_loss
+}
+
+pub fn binary_crossentropy_2d(
+    model: &CNN,
+    inputs: Vec<Vec<Value2d>>, // shape: (batch_size, channels, features)
+    targets: Vec<bool>,
+    learning_rate: f64,
+    epochs: usize,
+    batch_size: usize,
+) -> f64 {
+    assert!(!inputs.is_empty());
+    assert!(inputs.len() == targets.len());
+    let mut last_loss = INFINITY;
+    for _ in 0..epochs {
+        let (sample_inputs, sample_targets) = sample_of_size(&inputs, &targets, batch_size);
+        let predictions: Vec<Value1d> = sample_inputs
+            .iter()
+            .map(|x| model.forward(x.clone()))
+            .collect();
+        let targets_as_values: Vec<Value> =
+            sample_targets.iter().map(|&x| Value::from(x)).collect();
+        let loss: Value = predictions
+            .into_iter()
+            .zip(&targets_as_values)
+            .map(|(prediction, target)| {
+                let prob = prediction.sigmoid();
+                let loss = target * prob.log()
+                    + (Value::from(1.0) - target) * (Value::from(1.0) - prob).log();
+                -loss
+            })
+            .collect::<Value1d>()
             .mean();
         last_loss = loss.data();
         model.zero_grad();
