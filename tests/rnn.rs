@@ -39,13 +39,13 @@ fn test_recurrent_layer() {
 
 #[test]
 fn test_rnn() {
-    let input = v1d!(0.1, 0.3);
+    let input = vec![v1d!(0.1, 0.3)];
     let mut rnn = RNN::new(2, 2, 2, 1, 0.0);
     rnn.set_weights(Value::from(1.0));
     rnn.set_bias(Value::from(0.0));
     let (output, state) = rnn.forward(&input, None);
-    assert!(output[0].data() - 0.9836748576936802 < 1e-6);
-    assert!(output[1].data() - 0.9836748576936802 < 1e-6);
+    assert!(output[0].data()[0] - 0.9836748576936802 < 1e-6);
+    assert!(output[0].data()[1] - 0.9836748576936802 < 1e-6);
 
     let states = state.unwrap();
     assert_eq!(states.len(), 1);
@@ -93,13 +93,13 @@ fn test_lstm_layer() {
 
 #[test]
 fn test_lstm() {
-    let input = v1d!(0.1, 0.3);
+    let input = vec![v1d!(0.1, 0.3)];
     let mut lstm = LSTM::new(2, 2, 2, 1, 0.0);
     lstm.set_weights(Value::from(1.0));
     lstm.set_bias(Value::from(0.0));
     let (output, state) = lstm.forward(&input, None);
-    assert!(output[0].data() - 0.9836748576936802 < 1e-6);
-    assert!(output[1].data() - 0.9836748576936802 < 1e-6);
+    assert!(output[0].data()[0] - 0.9836748576936802 < 1e-6);
+    assert!(output[0].data()[1] - 0.9836748576936802 < 1e-6);
 
     let states = state.unwrap();
     assert_eq!(states.len(), 1);

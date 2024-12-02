@@ -190,23 +190,31 @@ impl RNN {
 
     pub fn forward(
         &self,
-        input: &Value1d,
+        input: &Vec<Value1d>,        // shape: (seq_len, features)
         state: Option<Vec<Value1d>>, // shape: (num_layers, hidden_size)
-    ) -> (Value1d, Option<Vec<Value1d>>) {
-        let mut output = input.clone();
-        let states = match state {
+    ) -> (Vec<Value1d>, Option<Vec<Value1d>>) {
+        let mut states = match state {
             None => vec![None; self.rlayers.len()],
             Some(state) => state.into_iter().map(|s| Some(s)).collect(),
         };
         assert_eq!(states.len(), self.rlayers.len());
-        let mut new_states = Vec::new();
-        for (layer, lstate) in self.rlayers.iter().zip(states.into_iter()) {
-            let (new_output, new_state) = layer.forward(&output, lstate);
-            output = new_output;
-            new_states.push(new_state.unwrap());
+        let mut outputs = Vec::new();
+        for i in input {
+            let mut new_states = Vec::new();
+            let mut output = i.clone();
+            for (layer, lstate) in self.rlayers.iter().zip(states.into_iter()) {
+                let (new_output, new_state) = layer.forward(&output, lstate);
+                output = new_output;
+                new_states.push(new_state);
+            }
+            states = new_states;
+            output = self.output_layer.forward(&output);
+            outputs.push(output);
         }
-        output = self.output_layer.forward(&output);
-        (output, Some(new_states))
+        (
+            outputs,
+            Some(states.iter().map(|x| x.clone().unwrap()).collect()),
+        )
     }
 }
 
@@ -408,22 +416,30 @@ impl LSTM {
 
     pub fn forward(
         &self,
-        input: &Value1d,
+        input: &Vec<Value1d>,                   // shape: (seq_len, features)
         state: Option<Vec<(Value1d, Value1d)>>, // shape: (num_layers, hidden_size)
-    ) -> (Value1d, Option<Vec<(Value1d, Value1d)>>) {
-        let mut output = input.clone();
-        let states = match state {
+    ) -> (Vec<Value1d>, Option<Vec<(Value1d, Value1d)>>) {
+        let mut states = match state {
             None => vec![None; self.rlayers.len()],
             Some(state) => state.into_iter().map(|s| Some(s)).collect(),
         };
         assert_eq!(states.len(), self.rlayers.len());
-        let mut new_states = Vec::new();
-        for (layer, lstate) in self.rlayers.iter().zip(states.into_iter()) {
-            let (new_output, new_state) = layer.forward(&output, lstate);
-            output = new_output;
-            new_states.push(new_state.unwrap());
+        let mut outputs = Vec::new();
+        for i in input {
+            let mut new_states = Vec::new();
+            let mut output = i.clone();
+            for (layer, lstate) in self.rlayers.iter().zip(states.into_iter()) {
+                let (new_output, new_state) = layer.forward(&output, lstate);
+                output = new_output;
+                new_states.push(new_state);
+            }
+            states = new_states;
+            output = self.output_layer.forward(&output);
+            outputs.push(output);
         }
-        output = self.output_layer.forward(&output);
-        (output, Some(new_states))
+        (
+            outputs,
+            Some(states.iter().map(|x| x.clone().unwrap()).collect()),
+        )
     }
 }
