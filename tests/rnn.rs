@@ -1,4 +1,7 @@
-use microgradr::{v1d, DropoutLayer, LstmLayer, RecurrentLayer, Value, LSTM, RNN};
+use microgradr::{
+    sgd::{categorical_crossentropy_lstm, categorical_crossentropy_rnn}, v1d, DropoutLayer, LstmLayer, RecurrentLayer, Value, LSTM,
+    RNN,
+};
 
 #[test]
 fn test_dropout_layer() {
@@ -109,4 +112,86 @@ fn test_lstm() {
     assert!(states[0].0[1].data() - 0.1338826989447839 < 1e-6);
     assert!(states[0].1[0].data() - 0.22747075517473495 < 1e-6);
     assert!(states[0].1[1].data() - 0.22747075517473495 < 1e-6);
+}
+
+#[test]
+#[serial_test::serial(with_seed)]
+fn test_categorical_crossentropy_rnn() {
+    microgradr::set_seed(1337);
+    let input = vec![
+        v1d![1.0, 0.0, 0.0, 0.0, 1.0],
+        v1d![0.0, 1.0, 0.0, 1.0, 0.0],
+        v1d![0.0, 0.0, 1.0, 0.0, 0.0],
+        v1d![0.0, 1.0, 0.0, 1.0, 0.0],
+        v1d![1.0, 0.0, 0.0, 0.0, 1.0],
+    ];
+    let input2 = vec![
+        v1d![1.0, 1.0, 1.0, 1.0, 1.0],
+        v1d![1.0, 0.0, 0.0, 0.0, 1.0],
+        v1d![1.0, 0.0, 0.0, 0.0, 1.0],
+        v1d![1.0, 0.0, 0.0, 0.0, 1.0],
+        v1d![1.0, 1.0, 1.0, 1.0, 1.0],
+    ];
+    let inputs = vec![input.clone(), input2.clone()];
+    let targets = vec![vec![0, 0, 0, 0, 0], vec![1, 1, 1, 1, 1]];
+    let mut model = RNN::new(input[0].len(), input[0].len(), 2, 1, 0.0);
+    let loss = categorical_crossentropy_rnn(&model, inputs, targets, 0.5, 100, 1);
+    assert!((0.010845145299080993 - loss).abs() < 1e-6);
+
+    model.eval();
+    let output = model
+        .forward(&input, None)
+        .0
+        .iter()
+        .map(|x| x.argmax())
+        .collect::<Vec<usize>>();
+    assert_eq!(output, vec![0, 0, 0, 0, 0]);
+    let output = model
+        .forward(&input2, None)
+        .0
+        .iter()
+        .map(|x| x.argmax())
+        .collect::<Vec<usize>>();
+    assert_eq!(output, vec![1, 1, 1, 1, 1]);
+}
+
+#[test]
+#[serial_test::serial(with_seed)]
+fn test_categorical_crossentropy_lstm() {
+    microgradr::set_seed(1337);
+    let input = vec![
+        v1d![1.0, 0.0, 0.0, 0.0, 1.0],
+        v1d![0.0, 1.0, 0.0, 1.0, 0.0],
+        v1d![0.0, 0.0, 1.0, 0.0, 0.0],
+        v1d![0.0, 1.0, 0.0, 1.0, 0.0],
+        v1d![1.0, 0.0, 0.0, 0.0, 1.0],
+    ];
+    let input2 = vec![
+        v1d![1.0, 1.0, 1.0, 1.0, 1.0],
+        v1d![1.0, 0.0, 0.0, 0.0, 1.0],
+        v1d![1.0, 0.0, 0.0, 0.0, 1.0],
+        v1d![1.0, 0.0, 0.0, 0.0, 1.0],
+        v1d![1.0, 1.0, 1.0, 1.0, 1.0],
+    ];
+    let inputs = vec![input.clone(), input2.clone()];
+    let targets = vec![vec![0, 0, 0, 0, 0], vec![1, 1, 1, 1, 1]];
+    let mut model = LSTM::new(input[0].len(), input[0].len(), 2, 1, 0.0);
+    let loss = categorical_crossentropy_lstm(&model, inputs, targets, 0.5, 200, 1);
+    assert!((0.06210688982730858 - loss).abs() < 1e-6);
+
+    model.eval();
+    let output = model
+        .forward(&input, None)
+        .0
+        .iter()
+        .map(|x| x.argmax())
+        .collect::<Vec<usize>>();
+    assert_eq!(output, vec![0, 0, 0, 0, 0]);
+    let output = model
+        .forward(&input2, None)
+        .0
+        .iter()
+        .map(|x| x.argmax())
+        .collect::<Vec<usize>>();
+    assert_eq!(output, vec![1, 1, 1, 1, 1]);
 }

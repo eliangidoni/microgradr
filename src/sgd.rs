@@ -3,7 +3,9 @@ use crate::Value;
 use crate::Value1d;
 use crate::Value2d;
 use crate::CNN;
+use crate::LSTM;
 use crate::MLP;
+use crate::RNN;
 use std::collections::HashSet;
 use std::f64::INFINITY;
 
@@ -192,6 +194,89 @@ pub fn binary_crossentropy_2d(
                 let loss = target * prob.log()
                     + (Value::from(1.0) - target) * (Value::from(1.0) - prob).log();
                 -loss
+            })
+            .collect::<Value1d>()
+            .mean();
+        last_loss = loss.data();
+        model.zero_grad();
+        loss.backward();
+        model.update(-learning_rate);
+    }
+    last_loss
+}
+
+pub fn categorical_crossentropy_rnn(
+    model: &RNN,
+    inputs: Vec<Vec<Value1d>>, // shape: (batch_size, seq_len, features)
+    targets: Vec<Vec<usize>>,  // shape: (batch_size, seq_len)
+    learning_rate: f64,
+    epochs: usize,
+    batch_size: usize,
+) -> f64 {
+    assert!(!inputs.is_empty());
+    assert!(inputs.len() == targets.len());
+    let mut last_loss = INFINITY;
+    for _ in 0..epochs {
+        let (sample_inputs, sample_targets) = sample_of_size(&inputs, &targets, batch_size);
+        let predictions: Vec<Vec<Value1d>> = sample_inputs
+            .iter()
+            .map(|x| model.forward(x, None).0)
+            .collect();
+        let loss: Value = predictions
+            .into_iter()
+            .zip(&sample_targets)
+            .map(|(prediction, target)| {
+                prediction
+                    .iter()
+                    .zip(target)
+                    .map(|(p, t)| {
+                        let nll = -p.softmax().log();
+                        assert!(*t < nll.len());
+                        nll[*t].clone()
+                    })
+                    .collect::<Value1d>()
+            })
+            .collect::<Value1d>()
+            .mean();
+        last_loss = loss.data();
+        model.zero_grad();
+        loss.backward();
+        model.update(-learning_rate);
+    }
+    last_loss
+}
+
+
+pub fn categorical_crossentropy_lstm(
+    model: &LSTM,
+    inputs: Vec<Vec<Value1d>>, // shape: (batch_size, seq_len, features)
+    targets: Vec<Vec<usize>>,  // shape: (batch_size, seq_len)
+    learning_rate: f64,
+    epochs: usize,
+    batch_size: usize,
+) -> f64 {
+    assert!(!inputs.is_empty());
+    assert!(inputs.len() == targets.len());
+    let mut last_loss = INFINITY;
+    for _ in 0..epochs {
+        let (sample_inputs, sample_targets) = sample_of_size(&inputs, &targets, batch_size);
+        let predictions: Vec<Vec<Value1d>> = sample_inputs
+            .iter()
+            .map(|x| model.forward(x, None).0)
+            .collect();
+        let loss: Value = predictions
+            .into_iter()
+            .zip(&sample_targets)
+            .map(|(prediction, target)| {
+                prediction
+                    .iter()
+                    .zip(target)
+                    .map(|(p, t)| {
+                        let nll = -p.softmax().log();
+                        assert!(*t < nll.len());
+                        nll[*t].clone()
+                    })
+                    .collect::<Value1d>()
             })
             .collect::<Value1d>()
             .mean();
