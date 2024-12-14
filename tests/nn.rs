@@ -16,6 +16,12 @@ fn test_neuron() {
     let inputs = v1d![1.0, 2.0, 3.0, 4.0];
     let result = neuron.forward(&inputs);
     assert_eq!(result.data(), 35.0);
+
+    let mut neuron = Neuron::without_bias(4, false);
+    neuron.set_weights(&v1d![1.0, 2.0, 3.0, 4.0]);
+    let inputs = v1d![1.0, 2.0, 3.0, 4.0];
+    let result = neuron.forward(&inputs);
+    assert_eq!(result.data(), 30.0);
 }
 
 #[test]

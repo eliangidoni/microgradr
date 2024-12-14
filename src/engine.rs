@@ -187,6 +187,19 @@ impl Value {
         )
     }
 
+    pub fn sqrt(&self) -> Self {
+        let backward_fn = |val: Ref<ValueInner>, grads: &mut Vec<f64>| {
+            let left = val.left.as_ref().unwrap().borrow();
+            grads[left.grad_idx] += 1.0 / (2.0 * val.data) * grads[val.grad_idx];
+        };
+        Self::with_children(
+            self.data().sqrt(),
+            (Some(self.clone()), None),
+            Some(backward_fn),
+            "sqrt".to_string(),
+        )
+    }
+
     pub fn sigmoid(&self) -> Self {
         let backward_fn = |val: Ref<ValueInner>, grads: &mut Vec<f64>| {
             let left = val.left.as_ref().unwrap().borrow();
@@ -788,6 +801,14 @@ impl Value1d {
         res
     }
 
+    pub fn sqrt(&self) -> Self {
+        let mut res = Self::new();
+        for val in self.values.iter() {
+            res.push(val.sqrt());
+        }
+        res
+    }
+
     pub fn sigmoid(&self) -> Self {
         let mut res = Self::new();
         for val in self.values.iter() {
@@ -803,6 +824,34 @@ impl Value1d {
     pub fn mean(&self) -> Value {
         assert!(!self.is_empty(), "empty vector");
         self.sum() / Value::from(self.len())
+    }
+
+    pub fn variance(&self) -> Value {
+        assert!(!self.is_empty(), "empty vector");
+        let mean = self.mean();
+        let mut res = Value::from(0.0);
+        for val in self.values.iter() {
+            res = res + (val - &mean).pow(&Value::from(2.0));
+        }
+        res / Value::from(self.len())
+    }
+
+    pub fn variance_corr(&self) -> Value {
+        assert!(!self.len() > 1, "not enough values in vector");
+        let mean = self.mean();
+        let mut res = Value::from(0.0);
+        for val in self.values.iter() {
+            res = res + (val - &mean).pow(&Value::from(2.0));
+        }
+        res / Value::from(self.len() - 1)
+    }
+
+    pub fn std(&self) -> Value {
+        self.variance().sqrt()
+    }
+
+    pub fn std_corr(&self) -> Value {
+        self.variance_corr().sqrt()
     }
 
     pub fn mse(&self, other: &Self) -> Value {
@@ -898,12 +947,30 @@ impl Value1d {
     }
 }
 
+impl Extend<Value> for Value1d {
+    fn extend<T: IntoIterator<Item = Value>>(&mut self, iter: T) {
+        for val in iter {
+            self.push(val);
+        }
+    }
+}
+
 impl From<Vec<f64>> for Value1d {
     fn from(other: Vec<f64>) -> Value1d {
         let mut v = Value1d::new();
         other
             .into_iter()
             .for_each(|val| v.values.push(Value::from(val)));
+        v
+    }
+}
+
+impl From<&Vec<f64>> for Value1d {
+    fn from(other: &Vec<f64>) -> Value1d {
+        let mut v = Value1d::new();
+        other
+            .into_iter()
+            .for_each(|val| v.values.push(Value::from(*val)));
         v
     }
 }
@@ -1475,6 +1542,10 @@ impl Value2d {
         res
     }
 
+    pub fn to_value1d(&self) -> Vec<Value1d> {
+        self.values.clone()
+    }
+
     pub fn data(&self) -> Vec<Vec<f64>> {
         self.values.iter().map(|v| v.data()).collect()
     }
@@ -1502,6 +1573,10 @@ impl Value2d {
 
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
+    }
+
+    pub fn append(&mut self, other: &mut Self) {
+        self.values.append(&mut other.values);
     }
 
     pub fn iter(&self) -> Value2dIter {
@@ -1583,6 +1658,14 @@ impl Value2d {
         let mut res = Self::new();
         for val in self.values.iter() {
             res.values.push(val.log());
+        }
+        res
+    }
+
+    pub fn sqrt(&self) -> Self {
+        let mut res = Self::new();
+        for val in self.values.iter() {
+            res.values.push(val.sqrt());
         }
         res
     }
@@ -1771,6 +1854,34 @@ impl Value2d {
         res
     }
 
+    pub fn variance(&self) -> Value {
+        assert!(!self.is_empty(), "empty Value2D");
+        let mean = self.mean();
+        let mut res = Value::from(0.0);
+        for val in self {
+            res = res + (val - &mean).pow(&Value::from(2.0));
+        }
+        res / Value::from(self.len())
+    }
+
+    pub fn variance_corr(&self) -> Value {
+        assert!(!self.len() > 1, "not enough values in Value2D");
+        let mean = self.mean();
+        let mut res = Value::from(0.0);
+        for val in self {
+            res = res + (val - &mean).pow(&Value::from(2.0));
+        }
+        res / Value::from(self.len() - 1)
+    }
+
+    pub fn std(&self) -> Value {
+        self.variance().sqrt()
+    }
+
+    pub fn std_corr(&self) -> Value {
+        self.variance_corr().sqrt()
+    }
+
     pub fn mean(&self) -> Value {
         assert!(!self.values.is_empty(), "empty Value2D");
         self.sum() / Value::from(self.len())
@@ -1861,10 +1972,26 @@ impl Value2d {
     }
 }
 
+impl Extend<Value1d> for Value2d {
+    fn extend<T: IntoIterator<Item = Value1d>>(&mut self, iter: T) {
+        for i in iter {
+            self.values.push(i);
+        }
+    }
+}
+
 impl From<Vec<Value1d>> for Value2d {
     fn from(other: Vec<Value1d>) -> Value2d {
         let mut v = Value2d::new();
         other.into_iter().for_each(|val| v.values.push(val));
+        v
+    }
+}
+
+impl From<&Vec<Value1d>> for Value2d {
+    fn from(other: &Vec<Value1d>) -> Value2d {
+        let mut v = Value2d::new();
+        other.into_iter().for_each(|val| v.values.push(val.clone()));
         v
     }
 }

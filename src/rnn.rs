@@ -1,5 +1,6 @@
 use crate::{gen_range, Layer, Value, Value1d};
 
+#[derive(Clone, Debug)]
 pub struct DropoutLayer {
     is_training: bool,
     rate: f64,

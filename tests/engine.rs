@@ -129,6 +129,12 @@ fn test_engine_self_ops() {
     assert_eq!(-2.0, x.grad());
 
     let x = v!(2.0);
+    let y = x.pow(v!(2.0)) * x.pow(v!(3.0)).sqrt() * x.pow(v!(3.0)) * x.pow(v!(3.0));
+    y.backward();
+    assert!((y.data() - 724.0773).abs() < 1e-4);
+    assert!((x.grad() - 3439.3674).abs() < 1e-4);
+
+    let x = v!(2.0);
     let y = x.pow(v!(2.0)) * x.pow(v!(3.0)) * x.pow(v!(3.0)) * x.pow(v!(3.0));
     y.backward();
     assert_eq!(2048.0, y.data());
@@ -351,6 +357,31 @@ fn test_value_vec() {
     let ref x = v1d!(3.0, 2.0, 3.0);
     let ref y = v1d!(2.0, 4.0, 5.0);
     assert_eq!(v!(29), &x.dot(y));
+
+    let mut x = Value1d::new();
+    assert!(x.is_empty());
+    assert_eq!(x.len(), 0);
+    assert_eq!(x.data(), vec![]);
+    assert_eq!(x.sum().data(), 0.0);
+    x.push(Value::from(1.0));
+    assert_eq!(x.data(), vec![1.0]);
+    assert_eq!(x.sum().data(), 1.0);
+    assert!(!x.is_empty());
+    assert_eq!(x.len(), 1);
+    assert!(x.pop().unwrap().data() == 1.0);
+    x.push(Value::from(2.0));
+    x.clear();
+    assert!(x.is_empty());
+    assert_eq!(x.len(), 0);
+    assert_eq!(x.data(), vec![]);
+    x.push(Value::from(2.0));
+    x.insert(0, Value::from(3.0));
+    assert_eq!(x.data(), vec![3.0, 2.0]);
+    assert_eq!(x.len(), 2);
+    x.append(&mut v1d!(4.0, 5.0));
+    assert_eq!(x.data(), vec![3.0, 2.0, 4.0, 5.0]);
+    x.extend(v1d!(6.0, 7.0));
+    assert_eq!(x.data(), vec![3.0, 2.0, 4.0, 5.0, 6.0, 7.0]);
 }
 
 #[test]
@@ -358,6 +389,31 @@ fn test_value2d() {
     let x = Value2d::zeros((2, 2));
     assert_eq!(x.shape(), (2, 2));
     assert_eq!(x, Value2d::from(vec![v1d!(0.0, 0.0), v1d!(0.0, 0.0)]));
+
+    let mut x = Value2d::ones((2, 2));
+    x.append(&mut Value2d::zeros((2, 2)));
+    assert_eq!(x.shape(), (4, 2));
+    assert_eq!(
+        x,
+        Value2d::from(vec![
+            v1d!(1.0, 1.0),
+            v1d!(1.0, 1.0),
+            v1d!(0.0, 0.0),
+            v1d!(0.0, 0.0)
+        ])
+    );
+    x.extend(Value2d::ones((1, 2)).to_value1d());
+    assert_eq!(x.shape(), (5, 2));
+    assert_eq!(
+        x,
+        Value2d::from(vec![
+            v1d!(1.0, 1.0),
+            v1d!(1.0, 1.0),
+            v1d!(0.0, 0.0),
+            v1d!(0.0, 0.0),
+            v1d!(1.0, 1.0)
+        ])
+    );
 
     let x = Value2d::ones((2, 2));
     assert_eq!(x.shape(), (2, 2));
@@ -372,6 +428,17 @@ fn test_value2d() {
             .pow(&Value2d::from_value(Value::from(2.0), (2, 2))),
         Value2d::from(vec![v1d!(1.0, 4.0), v1d!(9.0, 16.0)])
     );
+
+    let ref x = vec![v1d!(1.0, 22.0, 33.0), v1d!(4.0, 5.0, 6.0)];
+    let ref mx = Value2d::from(x.clone());
+    assert!((x[0].variance().data() - 176.2222).abs() < 1e-4);
+    assert!((x[0].variance_corr().data() - 264.3333).abs() < 1e-4);
+    assert!((mx.variance().data() - 135.1389).abs() < 1e-4);
+    assert!((mx.variance_corr().data() - 162.1667).abs() < 1e-4);
+    assert!((x[0].std().data() - 13.2749).abs() < 1e-4);
+    assert!((x[0].std_corr().data() - 16.2583).abs() < 1e-4);
+    assert!((mx.std().data() - 11.6249).abs() < 1e-4);
+    assert!((mx.std_corr().data() - 12.7345).abs() < 1e-4);
 
     let ref x = vec![v1d!(1.0, 2.0, 3.0), v1d!(4.0, 5.0, 6.0)];
     let ref y = vec![v1d!(7.0, 8.0, 9.0), v1d!(10.0, 11.0, 12.0)];
@@ -519,6 +586,7 @@ fn test_value2d() {
 
     let ref mx = Value2d::from(x.clone());
     let ref my = Value2d::from(y.clone());
+    assert_eq!(mx.to_value1d(), x.clone());
     assert_eq!(mx.sum_axis_0(), v1d![5.0, 7.0, 9.0]);
     assert_eq!(mx.sum_axis_1(), v1d![6.0, 15.0]);
     assert_eq!(mx.mean_axis_0(), v1d![2.5, 3.5, 4.5]);
@@ -535,6 +603,17 @@ fn test_value2d() {
     assert_eq!(mx.mse_axis_1(&my), v1d![36.0, 36.0]);
     assert_eq!(mx[(0, 1)], *v!(2.0));
     assert_eq!(mx[(1, 0)], *v!(4.0));
+
+    let ref x = vec![v1d!(1.0, 2.0, 3.0), v1d!(4.0, 5.0, 6.0)];
+    let ref mx = Value2d::from(x.clone());
+    let y: Value2d = mx
+        .to_value1d()
+        .iter()
+        .map(|v| v.clone() + v!(1.0))
+        .collect();
+    let ref expected = vec![v1d!(2.0, 3.0, 4.0), v1d!(5.0, 6.0, 7.0)];
+    let ref mexpected = Value2d::from(expected.clone());
+    assert_eq!(y.data(), mexpected.data());
 }
 
 #[test]

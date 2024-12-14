@@ -169,7 +169,7 @@ pub fn categorical_crossentropy_2d(
 
 pub fn binary_crossentropy_2d(
     model: &CNN,
-    inputs: Vec<Vec<Value2d>>, // shape: (batch_size, channels, features)
+    inputs: Vec<Vec<Value2d>>, // shape: (batch_size, channels, height, width)
     targets: Vec<bool>,
     learning_rate: f64,
     epochs: usize,

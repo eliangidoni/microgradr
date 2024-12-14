@@ -12,6 +12,11 @@ pub use rnn::{DropoutLayer, LstmLayer, RecurrentLayer, LSTM, RNN};
 pub mod sgd;
 pub use sgd::mean_squared_error;
 pub mod gbm;
+pub mod transformer;
+pub use transformer::{
+    Attention, Decoder, DecoderLayer, Embedding, Encoder, EncoderLayer, FeedForward, LayerNorm,
+    Model, MultiheadAttention, PositionalEncoding, Transformer,
+};
 pub mod tree;
 pub use tree::Tree;
 

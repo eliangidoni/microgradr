@@ -1,8 +1,9 @@
 use crate::{Value, Value1d};
 
+#[derive(Clone, Debug)]
 pub struct Neuron {
     weights: Value1d,
-    bias: Value,
+    bias: Option<Value>,
     is_activation: bool,
 }
 
@@ -11,7 +12,16 @@ impl Neuron {
         let weights = Value1d::rand(inputs);
         Self {
             weights,
-            bias: Value::from(0.0),
+            bias: Some(Value::from(0.0)),
+            is_activation,
+        }
+    }
+
+    pub fn without_bias(inputs: usize, is_activation: bool) -> Self {
+        let weights = Value1d::rand(inputs);
+        Self {
+            weights,
+            bias: None,
             is_activation,
         }
     }
@@ -22,20 +32,28 @@ impl Neuron {
     }
 
     pub fn set_bias(&mut self, bias: &Value) {
-        self.bias = bias.clone();
+        assert!(self.bias.is_some());
+        self.bias = Some(bias.clone());
     }
 
     pub fn parameters(&self) -> Value1d {
-        self.weights
-            .iter()
-            .chain(std::iter::once(&self.bias))
-            .cloned()
-            .collect()
+        if let Some(bias) = &self.bias {
+            return self
+                .weights
+                .iter()
+                .chain(std::iter::once(bias))
+                .cloned()
+                .collect();
+        }
+        self.weights.clone()
     }
 
     pub fn forward(&self, inputs: &Value1d) -> Value {
         assert_eq!(inputs.len(), self.weights.len());
-        let result = (inputs * &self.weights).sum() + &self.bias;
+        let mut result = (inputs * &self.weights).sum();
+        if let Some(bias) = &self.bias {
+            result = result + bias;
+        }
         if self.is_activation {
             return result.relu();
         }
@@ -43,6 +61,7 @@ impl Neuron {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Layer {
     neurons: Vec<Neuron>,
 }
@@ -51,6 +70,13 @@ impl Layer {
     pub fn new(inputs: usize, outputs: usize, is_activation: bool) -> Self {
         let neurons = (0..outputs)
             .map(|_| Neuron::new(inputs, is_activation))
+            .collect();
+        Self { neurons }
+    }
+
+    pub fn without_bias(inputs: usize, outputs: usize, is_activation: bool) -> Self {
+        let neurons = (0..outputs)
+            .map(|_| Neuron::without_bias(inputs, is_activation))
             .collect();
         Self { neurons }
     }
