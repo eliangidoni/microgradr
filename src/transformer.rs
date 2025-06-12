@@ -77,6 +77,33 @@ impl LayerNorm {
 }
 
 #[derive(Clone, Debug)]
+pub struct DynamicTanh {
+    scale: Value1d,
+    bias: Value1d,
+    alpha: Value,
+}
+
+impl DynamicTanh {
+    pub fn new(d_model: usize, alpha: f64) -> Self {
+        Self {
+            scale: Value1d::ones(d_model),
+            bias: Value1d::zeros(d_model),
+            alpha: Value::from(alpha),
+        }
+    }
+
+    pub fn forward(
+        &self,
+        inputs: &Vec<Value1d>, // shape: (seq_len, d_model)
+    ) -> Vec<Value1d> {
+        inputs
+            .iter()
+            .map(|i| (i * &self.alpha).tanh() * &self.scale + &self.bias)
+            .collect()
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct PositionalEncoding {
     encoding: Vec<Value1d>,
 }

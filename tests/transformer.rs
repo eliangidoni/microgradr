@@ -1,6 +1,6 @@
 use microgradr::{
-    v1d, Attention, Decoder, DecoderLayer, Embedding, Encoder, EncoderLayer, FeedForward,
-    LayerNorm, MultiheadAttention, PositionalEncoding, Transformer,
+    transformer::DynamicTanh, v1d, Attention, Decoder, DecoderLayer, Embedding, Encoder,
+    EncoderLayer, FeedForward, LayerNorm, MultiheadAttention, PositionalEncoding, Transformer,
 };
 
 #[test]
@@ -33,6 +33,22 @@ fn test_layernorm() {
     assert!(output[1].data()[0] - (-1.2247) < 1e-4);
     assert!(output[1].data()[1] - 0.0000 < 1e-4);
     assert!(output[1].data()[2] - (1.2247) < 1e-4);
+}
+
+#[test]
+fn test_dyt() {
+    let input = vec![v1d![1.0, 2.0, 3.0], v1d![4.0, 5.0, 6.0]];
+    let layer = DynamicTanh::new(3, 0.5);
+    let output = layer.forward(&input);
+    assert_eq!(output.len(), 2);
+    assert_eq!(output[0].len(), 3);
+
+    assert!(output[0].data()[0] - 0.46211 < 1e-4);
+    assert!(output[0].data()[1] - 0.76159 < 1e-4);
+    assert!(output[0].data()[2] - 0.90514 < 1e-4);
+    assert!(output[1].data()[0] - 0.96402 < 1e-4);
+    assert!(output[1].data()[1] - 0.98661 < 1e-4);
+    assert!(output[1].data()[2] - 0.99505 < 1e-4);
 }
 
 #[test]

@@ -6,6 +6,7 @@ pub mod nn;
 pub mod rand;
 pub mod rnn;
 pub use cnn::{Conv2dLayer, Dropout2dLayer, MaxPooling2dLayer, CNN};
+pub use gnn::{GCNConvLayer, MessagePassing, SAGEConvLayer};
 pub use nn::{Layer, Neuron, MLP};
 pub use rand::{gen_range, set_seed};
 pub use rnn::{DropoutLayer, LstmLayer, RecurrentLayer, LSTM, RNN};
@@ -14,8 +15,8 @@ pub use sgd::mean_squared_error;
 pub mod gbm;
 pub mod transformer;
 pub use transformer::{
-    Attention, Decoder, DecoderLayer, Embedding, Encoder, EncoderLayer, FeedForward, LayerNorm,
-    Model, MultiheadAttention, PositionalEncoding, Transformer,
+    Attention, Decoder, DecoderLayer, DynamicTanh, Embedding, Encoder, EncoderLayer, FeedForward,
+    LayerNorm, Model, MultiheadAttention, PositionalEncoding, Transformer,
 };
 pub mod tree;
 pub use tree::Tree;
@@ -41,14 +42,14 @@ macro_rules! v1d {
 }
 
 #[macro_export]
-macro_rules! vvec {
-    ($( $x:expr ),*) => {
+macro_rules! v2d {
+    [$($row:expr),* $(,)?] => {
         {
-            let mut tmp = Vec::new();
+            let mut rows = Vec::new();
             $(
-                tmp.push(microgradr::Value::from($x));
+                rows.push($row);
             )*
-            tmp
+            microgradr::Value2d::from(rows)
         }
     };
 }

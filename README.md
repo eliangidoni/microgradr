@@ -6,3 +6,8 @@ Inspired by https://github.com/karpathy/micrograd
 ```
 cargo test
 ```
+Coverage:
+```
+cargo install cargo-llvm-cov
+cargo llvm-cov --open
+```

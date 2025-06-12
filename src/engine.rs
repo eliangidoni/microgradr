@@ -21,7 +21,7 @@ fn gen_id() -> usize {
     })
 }
 
-#[derive(Clone, Eq, PartialEq, Debug, PartialOrd)]
+#[derive(Clone, PartialEq, Debug, PartialOrd)]
 pub struct Value {
     inner: ValueInnerRef,
 }
@@ -274,6 +274,12 @@ impl Value {
 
     fn borrow_mut(&self) -> RefMut<ValueInner> {
         self.inner.borrow_mut()
+    }
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:.4}", self.borrow().data)
     }
 }
 
@@ -660,15 +666,13 @@ impl PartialEq for ValueInner {
     }
 }
 
-impl Eq for ValueInner {}
-
 impl PartialOrd for ValueInner {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.data.partial_cmp(&other.data)
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Value1d {
     values: Vec<Value>,
 }
@@ -944,6 +948,14 @@ impl Value1d {
             res.push(a.mul_impl(b));
         }
         res
+    }
+}
+
+// implement display for Value1d
+impl fmt::Display for Value1d {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let values: Vec<String> = self.values.iter().map(|v| v.to_string()).collect();
+        write!(f, "[{}]", values.join(", "))
     }
 }
 
@@ -1520,7 +1532,7 @@ impl FromIterator<Value1d> for Value1d {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Value2d {
     values: Vec<Value1d>,
 }
@@ -1969,6 +1981,21 @@ impl Value2d {
             res.values.push(a.mul_impl(b));
         }
         res
+    }
+}
+
+// implement display for Value2d
+impl fmt::Display for Value2d {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut res = String::new();
+        for (i, row) in self.values.iter().enumerate() {
+            res.push_str(&row.to_string());
+            if i != self.values.len() - 1 {
+                res.push_str(",");
+                res.push_str("\n ");
+            }
+        }
+        write!(f, "[{}]", res)
     }
 }
 

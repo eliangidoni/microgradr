@@ -1,4 +1,4 @@
-use microgradr::{v, v1d, vvec, Value, Value1d, Value2d};
+use microgradr::{v, v1d, v2d, Value, Value1d, Value2d};
 
 #[test]
 fn test_engine_ops() {
@@ -25,10 +25,6 @@ fn test_engine_ops() {
     assert!((x.sigmoid().data() - 0.2920).abs() < 1e-4);
     let x = v!(-1.7683);
     assert!((x.sigmoid().data() - 0.1458).abs() < 1e-4);
-
-    let x = vvec!(-1.0, 2.0, -3.0);
-    let y: microgradr::Value = x.iter().sum();
-    assert!(y.data() == -2.0);
 }
 
 #[test]
@@ -388,45 +384,44 @@ fn test_value_vec() {
 fn test_value2d() {
     let x = Value2d::zeros((2, 2));
     assert_eq!(x.shape(), (2, 2));
-    assert_eq!(x, Value2d::from(vec![v1d!(0.0, 0.0), v1d!(0.0, 0.0)]));
+    assert_eq!(x, v2d![v1d!(0.0, 0.0), v1d!(0.0, 0.0)]);
 
     let mut x = Value2d::ones((2, 2));
     x.append(&mut Value2d::zeros((2, 2)));
     assert_eq!(x.shape(), (4, 2));
     assert_eq!(
         x,
-        Value2d::from(vec![
+        v2d![
             v1d!(1.0, 1.0),
             v1d!(1.0, 1.0),
             v1d!(0.0, 0.0),
             v1d!(0.0, 0.0)
-        ])
+        ]
     );
     x.extend(Value2d::ones((1, 2)).to_value1d());
     assert_eq!(x.shape(), (5, 2));
     assert_eq!(
         x,
-        Value2d::from(vec![
+        v2d![
             v1d!(1.0, 1.0),
             v1d!(1.0, 1.0),
             v1d!(0.0, 0.0),
             v1d!(0.0, 0.0),
             v1d!(1.0, 1.0)
-        ])
+        ]
     );
 
     let x = Value2d::ones((2, 2));
     assert_eq!(x.shape(), (2, 2));
-    assert_eq!(x, Value2d::from(vec![v1d!(1.0, 1.0), v1d!(1.0, 1.0)]));
+    assert_eq!(x, v2d![v1d!(1.0, 1.0), v1d!(1.0, 1.0)]);
 
     let x = Value2d::from_value(Value::from(-1.0), (2, 2));
     assert_eq!(x.shape(), (2, 2));
-    assert_eq!(x, Value2d::from(vec![v1d!(-1.0, -1.0), v1d!(-1.0, -1.0)]));
+    assert_eq!(x, v2d![v1d!(-1.0, -1.0), v1d!(-1.0, -1.0)]);
 
     assert_eq!(
-        Value2d::from(vec![v1d!(1.0, 2.0), v1d!(3.0, 4.0)])
-            .pow(&Value2d::from_value(Value::from(2.0), (2, 2))),
-        Value2d::from(vec![v1d!(1.0, 4.0), v1d!(9.0, 16.0)])
+        v2d![v1d!(1.0, 2.0), v1d!(3.0, 4.0)].pow(&Value2d::from_value(Value::from(2.0), (2, 2))),
+        v2d![v1d!(1.0, 4.0), v1d!(9.0, 16.0)]
     );
 
     let ref x = vec![v1d!(1.0, 22.0, 33.0), v1d!(4.0, 5.0, 6.0)];
@@ -451,10 +446,10 @@ fn test_value2d() {
     assert_eq!(mx.mse(&my).data(), 36.0);
 
     let actual = mx.softmax();
-    let expected = Value2d::from(vec![
+    let expected = v2d![
         v1d![0.00426978, 0.01160646, 0.03154963],
         v1d![0.08576079, 0.23312201, 0.63369132],
-    ]);
+    ];
     let shape = actual.shape();
     for i in 0..shape.0 {
         for j in 0..shape.1 {
@@ -463,10 +458,10 @@ fn test_value2d() {
     }
 
     let actual = mx.softmax_axis_1();
-    let expected = Value2d::from(vec![
+    let expected = v2d![
         v1d![0.09003057, 0.24472847, 0.66524096],
         v1d![0.09003057, 0.24472847, 0.66524096],
-    ]);
+    ];
     let shape = actual.shape();
     for i in 0..shape.0 {
         for j in 0..shape.1 {
@@ -475,10 +470,10 @@ fn test_value2d() {
     }
 
     let actual = mx.softmax_axis_0();
-    let expected = Value2d::from(vec![
+    let expected = v2d![
         v1d![0.04742587, 0.04742587, 0.04742587],
         v1d![0.95257413, 0.95257413, 0.95257413],
-    ]);
+    ];
     let shape = actual.shape();
     for i in 0..shape.0 {
         for j in 0..shape.1 {
@@ -490,23 +485,17 @@ fn test_value2d() {
     assert_eq!(mx.min().data(), 1.0);
     assert_eq!(my.shape(), (2, 3));
     assert_eq!(mx.shape(), (2, 3));
-    assert_eq!(
-        mx + my,
-        Value2d::from(vec![v1d!(8.0, 10.0, 12.0), v1d!(14.0, 16.0, 18.0)])
-    );
+    assert_eq!(mx + my, v2d![v1d!(8.0, 10.0, 12.0), v1d!(14.0, 16.0, 18.0)]);
     assert_eq!(
         mx - my,
-        Value2d::from(vec![v1d!(-6.0, -6.0, -6.0), v1d!(-6.0, -6.0, -6.0)])
+        v2d![v1d!(-6.0, -6.0, -6.0), v1d!(-6.0, -6.0, -6.0)]
     );
-    assert_eq!(
-        mx * my,
-        Value2d::from(vec![v1d!(7.0, 16.0, 27.0), v1d!(40.0, 55.0, 72.0)])
-    );
+    assert_eq!(mx * my, v2d![v1d!(7.0, 16.0, 27.0), v1d!(40.0, 55.0, 72.0)]);
     let actual = mx / my;
-    let expected = Value2d::from(vec![
+    let expected = v2d![
         v1d!(1.0 / 7.0, 2.0 / 8.0, 3.0 / 9.0),
         v1d!(4.0 / 10.0, 5.0 / 11.0, 6.0 / 12.0),
-    ]);
+    ];
     let shape = actual.shape();
     for i in 0..shape.0 {
         for j in 0..shape.1 {
@@ -515,24 +504,15 @@ fn test_value2d() {
     }
 
     let z = v!(3.0);
-    assert_eq!(
-        mx + z,
-        Value2d::from(vec![v1d!(4.0, 5.0, 6.0), v1d!(7.0, 8.0, 9.0)])
-    );
-    assert_eq!(
-        mx - z,
-        Value2d::from(vec![v1d!(-2.0, -1.0, 0.0), v1d!(1.0, 2.0, 3.0)])
-    );
-    assert_eq!(
-        mx * z,
-        Value2d::from(vec![v1d!(3.0, 6.0, 9.0), v1d!(12.0, 15.0, 18.0)])
-    );
+    assert_eq!(mx + z, v2d![v1d!(4.0, 5.0, 6.0), v1d!(7.0, 8.0, 9.0)]);
+    assert_eq!(mx - z, v2d![v1d!(-2.0, -1.0, 0.0), v1d!(1.0, 2.0, 3.0)]);
+    assert_eq!(mx * z, v2d![v1d!(3.0, 6.0, 9.0), v1d!(12.0, 15.0, 18.0)]);
 
     let actual = mx / z;
-    let expected = Value2d::from(vec![
+    let expected = v2d![
         v1d!(1.0 / 3.0, 2.0 / 3.0, 3.0 / 3.0),
         v1d!(4.0 / 3.0, 5.0 / 3.0, 6.0 / 3.0),
-    ]);
+    ];
     let shape = actual.shape();
     for i in 0..shape.0 {
         for j in 0..shape.1 {
@@ -540,23 +520,14 @@ fn test_value2d() {
         }
     }
 
-    assert_eq!(
-        z + mx,
-        Value2d::from(vec![v1d!(4.0, 5.0, 6.0), v1d!(7.0, 8.0, 9.0)])
-    );
-    assert_eq!(
-        z - mx,
-        Value2d::from(vec![v1d!(2.0, 1.0, 0.0), v1d!(-1.0, -2.0, -3.0)])
-    );
-    assert_eq!(
-        z * mx,
-        Value2d::from(vec![v1d!(3.0, 6.0, 9.0), v1d!(12.0, 15.0, 18.0)])
-    );
+    assert_eq!(z + mx, v2d![v1d!(4.0, 5.0, 6.0), v1d!(7.0, 8.0, 9.0)]);
+    assert_eq!(z - mx, v2d![v1d!(2.0, 1.0, 0.0), v1d!(-1.0, -2.0, -3.0)]);
+    assert_eq!(z * mx, v2d![v1d!(3.0, 6.0, 9.0), v1d!(12.0, 15.0, 18.0)]);
     let actual = z / mx;
-    let expected = Value2d::from(vec![
+    let expected = v2d![
         v1d!(3.0 / 1.0, 3.0 / 2.0, 3.0 / 3.0),
         v1d!(3.0 / 4.0, 3.0 / 5.0, 3.0 / 6.0),
-    ]);
+    ];
     let shape = actual.shape();
     for i in 0..shape.0 {
         for j in 0..shape.1 {
@@ -568,7 +539,7 @@ fn test_value2d() {
     assert_eq!(transposed.shape(), (3, 2));
     assert_eq!(
         transposed,
-        Value2d::from(vec![v1d!(1.0, 4.0), v1d!(2.0, 5.0), v1d!(3.0, 6.0)])
+        v2d![v1d!(1.0, 4.0), v1d!(2.0, 5.0), v1d!(3.0, 6.0)]
     );
 
     let ref x = vec![v1d!(1.0, 2.0, 3.0), v1d!(4.0, 5.0, 6.0)];
@@ -576,10 +547,7 @@ fn test_value2d() {
 
     let ref mx = Value2d::from(x.clone());
     let ref my = Value2d::from(y.clone());
-    assert_eq!(
-        mx.matmul(my),
-        Value2d::from(vec![v1d!(58.0, 64.0), v1d!(139.0, 154.0)])
-    );
+    assert_eq!(mx.matmul(my), v2d![v1d!(58.0, 64.0), v1d!(139.0, 154.0)]);
 
     let ref x = vec![v1d!(1.0, 2.0, 3.0), v1d!(4.0, 5.0, 6.0)];
     let ref y = vec![v1d!(7.0, 8.0, 9.0), v1d!(10.0, 11.0, 12.0)];
@@ -630,7 +598,7 @@ fn test_iterators() {
         expected.remove(0);
     }
 
-    let mx = Value2d::from(vec![v1d![1.0, 2.0], v1d![3.0, 4.0]]);
+    let mx = v2d![v1d![1.0, 2.0], v1d![3.0, 4.0]];
     let mut expected = vec![1.0, 2.0, 3.0, 4.0];
     for i in &mx {
         assert_eq!(i.data(), *expected.first().unwrap());

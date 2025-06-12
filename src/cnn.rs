@@ -181,12 +181,14 @@ pub struct CNN {
     dropout: Dropout2dLayer,
     maxpooling: MaxPooling2dLayer,
     layer: Layer,
+    out_channels: usize,
 }
 
 impl CNN {
     pub fn new(in_channels: usize, height: usize, width: usize, outputs: usize) -> Self {
         assert!(height >= 3 && width >= 3);
-        let conv = Conv2dLayer::new(in_channels, 4, 2, 1);
+        let out_channels = 4;
+        let conv = Conv2dLayer::new(in_channels, out_channels, 2, 1);
         let dropout = Dropout2dLayer::new(0.1);
         let maxpooling = MaxPooling2dLayer::new(2, 1);
         let layer = Layer::new(4 * (height - 2) * (width - 2), outputs, false);
@@ -195,6 +197,7 @@ impl CNN {
             dropout,
             maxpooling,
             layer,
+            out_channels,
         }
     }
 
@@ -213,6 +216,24 @@ impl CNN {
             .chain(self.layer.parameters().iter())
             .cloned()
             .collect()
+    }
+
+    pub fn set_bias(&mut self, bias: Value) {
+        let mut biases = Value1d::zeros(self.out_channels);
+        for i in 0..biases.len() {
+            biases[i] = bias.clone();
+        }
+        self.conv.set_biases(biases);
+        self.layer.set_bias(bias);
+    }
+
+    pub fn set_weights(&mut self, weight: Value) {
+        let mut weights = Value1d::zeros(self.conv.parameters().len() - self.out_channels);
+        for i in 0..weights.len() {
+            weights[i] = weight.clone();
+        }
+        self.conv.set_weights(weights);
+        self.layer.set_weights(weight);
     }
 
     pub fn zero_grad(&self) {
